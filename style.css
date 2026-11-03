@@ -181,6 +181,16 @@ img { max-width: 100%; display: block; }
 .project__body h3 { font-size: 1.2rem; margin: 4px 0 8px; }
 .project__body p { color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
 
+/* Esqueleto enquanto a planilha carrega */
+.project--skeleton .project__cover { background: #1a1a1a; }
+.project--skeleton .project__cover::after { display: none; }
+.project--skeleton .project__body span { display: block; height: 12px; border-radius: 6px; background: #1a1a1a; margin-bottom: 12px; }
+.project--skeleton .project__body span:nth-child(1) { width: 30%; }
+.project--skeleton .project__body span:nth-child(2) { width: 60%; height: 18px; }
+.project--skeleton .project__body span:nth-child(3) { width: 90%; }
+.project--skeleton .project__cover, .project--skeleton .project__body span { animation: skeleton 1.2s ease-in-out infinite; }
+@keyframes skeleton { 50% { opacity: .45; } }
+
 /* Depoimentos */
 .testimonial {
   background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 24px;
