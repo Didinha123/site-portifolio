@@ -94,13 +94,13 @@ function linkImagem(url) {
 
 const CAPAS_PADRAO = ['project__cover--gym', 'project__cover--barber', 'project__cover--therapy'];
 
-function cardProjeto(p, i) {
+function cardProjeto(p, i, classeReveal) {
   const link = p.link || '#';
   const capa = p.imagem
     ? `class="project__cover" style="background: url('${escapar(linkImagem(p.imagem))}') center/cover;"`
     : `class="project__cover ${CAPAS_PADRAO[i % CAPAS_PADRAO.length]}"`;
   return `
-    <article class="project reveal">
+    <article class="project ${classeReveal}">
       <div ${capa}>
         <span class="project__label">${escapar((p.categoria || p.nome).toUpperCase())}</span>
         <p>${escapar(p.frase || '')}</p>
@@ -114,23 +114,54 @@ function cardProjeto(p, i) {
     </article>`;
 }
 
+function projetosDoCSV(texto) {
+  const [cabecalho, ...linhas] = lerCSV(texto.replace(/^﻿/, ''));
+  const colunas = cabecalho.map(normalizar);
+  return linhas
+    .map(l => Object.fromEntries(colunas.map((col, i) => [col, (l[i] || '').trim()])))
+    .filter(p => p.nome);
+}
+
+function mostrarProjetos(grid, projetos) {
+  // Se o portfólio já está na tela, os cards entram sem repetir a animação
+  const classeReveal = grid.querySelector('.reveal.visible') ? 'reveal visible' : 'reveal';
+  grid.innerHTML = projetos.map((p, i) => cardProjeto(p, i, classeReveal)).join('');
+  grid.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObserver.observe(el));
+}
+
+const ESQUELETO = Array(3).fill(`
+  <article class="project project--skeleton reveal">
+    <div class="project__cover"></div>
+    <div class="project__body"><span></span><span></span><span></span></div>
+  </article>`).join('');
+
+// Mostra na hora a última versão salva da planilha (ou um esqueleto na primeira visita)
+// e atualiza em segundo plano quando o Google responder.
 async function carregarProjetos(url) {
   if (!url) return;
+  const grid = document.getElementById('projectsGrid');
+  const exemplos = grid.innerHTML;
+  const chave = 'projetos:' + url;
+  const salvo = localStorage.getItem(chave);
+
+  if (salvo && projetosDoCSV(salvo).length) mostrarProjetos(grid, projetosDoCSV(salvo));
+  else grid.innerHTML = ESQUELETO;
+  grid.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObserver.observe(el));
+
   try {
     const resposta = await fetch(url, { cache: 'no-store' });
     if (!resposta.ok) throw new Error('HTTP ' + resposta.status);
-    const [cabecalho, ...linhas] = lerCSV((await resposta.text()).replace(/^﻿/, ''));
-    const colunas = cabecalho.map(normalizar);
-    const projetos = linhas
-      .map(l => Object.fromEntries(colunas.map((col, i) => [col, (l[i] || '').trim()])))
-      .filter(p => p.nome);
-    if (!projetos.length) return;
-
-    const grid = document.getElementById('projectsGrid');
-    grid.innerHTML = projetos.map(cardProjeto).join('');
-    grid.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+    const texto = await resposta.text();
+    const projetos = projetosDoCSV(texto);
+    if (!projetos.length) throw new Error('planilha vazia');
+    if (texto !== salvo) {
+      localStorage.setItem(chave, texto);
+      mostrarProjetos(grid, projetos);
+    }
   } catch (erro) {
     console.warn('Não foi possível carregar a planilha de projetos:', erro);
+    if (!salvo) grid.innerHTML = exemplos;
+    grid.querySelectorAll('.reveal:not(.visible)').forEach(el => revealObserver.observe(el));
   }
 }
 
